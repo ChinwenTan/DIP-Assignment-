@@ -53,3 +53,51 @@ plt.ylabel('Number of Frames')
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+# === Watermark ===
+def brighten(path):
+    wm = cv2.imread(path).astype(float)
+    return np.clip(wm * 1.8, 0, 255).astype(np.uint8)
+
+wm1 = brighten("watermark1.png")
+wm2 = brighten("watermark2.png")
+h_wm, w_wm, _ = wm1.shape
+
+cap = cv2.VideoCapture(video_path)
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+
+out = cv2.VideoWriter("output.avi", fourcc, fps, (width, height))
+
+# === Apply watermark and process ===
+frame_idx = 0
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Position: center
+    center_y = height // 2
+    center_x = width // 2
+    top_y = center_y - h_wm // 2
+    left_x = center_x - w_wm // 2
+    bottom_y = top_y + h_wm
+    right_x = left_x + w_wm
+
+    # Get Roi
+    roi = frame[top_y:bottom_y, left_x:right_x]
+
+    current_wm = wm1 if (frame_idx // (fps * WM_SWITCH_INTERVAL)) % 2 == 0 else wm2
+    blended = cv2.addWeighted(roi, 1.0, current_wm, WM_ALPHA, 0)
+    frame[top_y:bottom_y, left_x:right_x] = blended
+
+    out.write(frame)
+    frame_idx += 1
+
+cap.release()
+out.release()
+cv2.destroyAllWindows()
+# === Watermark Fin ===
